@@ -1,0 +1,9 @@
+name: Test session
+root: ~/
+windows:
+  - name: Sticky Studio Code
+    root: ~/src/sticky-studio
+    cmd: vim
+  - name: System resources
+    cmd: htop
+
