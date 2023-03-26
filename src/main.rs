@@ -26,7 +26,7 @@ struct Session {
 struct Window {
     name: Option<String>,
     #[serde(default)]
-    layout: Option<Layout>,
+    layout: Layout,
     root: Option<PathBuf>,
     cmd: Option<String>,
     #[serde(default)]
@@ -36,9 +36,26 @@ struct Window {
 impl Window {
     fn render(&self) -> eyre::Result<()> {
         self.create()?;
+
+        // TODO: Validation: Either a command _or_ panes, never both!
         if let Some(command) = &self.cmd {
             self.run_cmd(&command)?;
         }
+
+        if let Some(panes) = &self.panes {
+            for (i, pane) in panes.iter().enumerate() {
+                if i > 0 { 
+                    pane.create()?;
+                };
+
+                pane.render()?;
+            }
+        }
+
+        Command::new("tmux")
+            .args(["select-layout", &self.layout.to_string()])
+            .spawn()?
+            .wait()?;
 
         Ok(())
     }
@@ -95,14 +112,53 @@ impl TryFrom<String> for Layout {
     }
 }
 
+impl ToString for Layout {
+    fn to_string(&self) -> String {
+        match self {
+            Layout::Tiled => "tiled",
+            Layout::EvenHorizontal => "even-horizontal",
+            Layout::EvenVertical => "even-vertical",
+            Layout::MainHorizontal => "main-horizontal",
+            Layout::MainVertical => "main-vertical",
+        }.to_string()
+    }
+}
+
 impl Default for Layout {
     fn default() -> Layout {
-        Self::EvenVertical
+        Self::EvenHorizontal
     }
 }
 
 #[derive(Debug, Deserialize, Default)]
 struct Pane(Option<String>);
+
+impl Pane {
+    fn render(&self) -> eyre::Result<()> {
+        if let Some(command) = &self.0 {
+            self.run_cmd(command)?;
+        }
+
+        Ok(())
+    }
+
+    fn create(&self) -> eyre::Result<()> {
+        Command::new("tmux")
+            .arg("split-window")
+            .spawn()?
+            .wait()?;
+        Ok(())
+    }
+
+    fn run_cmd(&self, cmd: &str) -> eyre::Result<()> {
+            Command::new("tmux")
+                .args(["send-keys", cmd, "Enter"])
+                .spawn()?
+                .wait()?;
+        Ok(())
+    }
+
+}
 
 impl Session {
     fn render(&self) -> eyre::Result<()> {
