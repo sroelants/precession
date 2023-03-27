@@ -4,6 +4,13 @@ windows:
   - name: Sticky Studio Code
     root: ~/src/sticky-studio
     cmd: vim
+
   - name: System resources
     cmd: htop
 
+  - name: Panes
+    layout: tiled
+    panes:
+      - exa
+      - curl parrot.live
+      - curl wttr.in/Barcelona

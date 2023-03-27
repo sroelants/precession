@@ -1,15 +1,64 @@
 use std::path::PathBuf;
+use clap::Parser;
 use serde::Deserialize;
 use std::process::Command;
 use eyre::Result;
 
 const INITIAL_WINDOW: &str = "999";
 
+const LONG_ABOUT: &str = "A simple tmux session starter.
+
+Start, stop and manage pre-defined tmux sessions easily and declaratively.
+";
+/// A simple tmux session starter. 
+/// Start, stop, and manage pre-defined tmux sessions easily and declaratively.
+#[derive(Parser)]
+#[command(name = "precession")]
+#[command(author = "Sam Roelants <sam@samroelants.com>")]
+#[command(about = "A simple tmux session starter")]
+#[command(long_about = LONG_ABOUT)]
+#[command(version)]
+enum Cli {
+    /// Start a new tmux session
+    Start(StartCmd),
+    /// List all available session definitions
+    List
+}
+
+#[derive(Parser)]
+struct StartCmd {
+    /// The name of the session, matching the yaml file, defaults to ./.session.yaml if omitted
+    session_name: Option<String>,
+
+    /// An alias if you want the session name to be different from the yaml definition
+    alias: Option<String>,
+
+    /// Definition file to load
+    #[arg(short)]
+    file: Option<String>,
+}
+
 fn main() -> Result<()> {
-    let file_name = "./session.yml";
-    let input = std::fs::read_to_string(file_name).expect("File not found");
-    let session: Session = serde_yaml::from_str(&input).expect("Couldn't deserialize yaml");
-    session.render()?;
+    let cli = Cli::parse();
+
+    match cli {
+        Cli::Start(StartCmd { session_name, alias: _alias, file }) => {
+            let path = if let Some(file) = file { 
+                file 
+            } else if let Some(session_name) = session_name {
+                format!("~/.config/precession/{session_name}.yaml")
+            } else {
+                String::from("./.session.yaml")
+            };
+
+            let path = PathBuf::from(path);
+            let input = std::fs::read_to_string(path)?;
+            let session: Session = serde_yaml::from_str(&input)?;
+            session.render()?;
+        },
+
+        _ => { }
+    }
 
     Ok(())
 }
