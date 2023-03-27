@@ -43,15 +43,25 @@ fn main() -> Result<()> {
 
     match cli {
         Cli::Start(StartCmd { session_name, alias: _alias, file }) => {
+            // Look for a definition in the following order
+            // 1. The user supplied a file explicitly (`-f <file>`)
+            // 2a. `$XDG_CONFIG_HOME/precession/<session_name>.yaml`
+            // 2b. `~/.config/precession/<session_name>.yaml` if `$XDG_CONFIG_HOME` is unset
+            // 3. `./.session.yaml`
             let path = if let Some(file) = file { 
-                file 
+                PathBuf::from(file)
             } else if let Some(session_name) = session_name {
-                format!("~/.config/precession/{session_name}.yaml")
+                let config_dir: PathBuf = 
+                    std::env::var("XDG_HOME_CONFIG")
+                    .map(|path| path.into())
+                    .unwrap_or(std::env::home_dir().unwrap().join(".config"));
+
+
+                config_dir.join(format!("precession/{session_name}.yaml"))
             } else {
-                String::from("./.session.yaml")
+                PathBuf::from("./.session.yaml")
             };
 
-            let path = PathBuf::from(path);
             let input = std::fs::read_to_string(path)?;
             let session: Session = serde_yaml::from_str(&input)?;
             session.render()?;
